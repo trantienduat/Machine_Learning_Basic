@@ -1,0 +1,48 @@
+{
+  "pipeline_version": "3.6_comprehensive",
+  "dataset_info": {
+    "train_shape": [
+      10000,
+      23
+    ],
+    "test_shape": [
+      3000,
+      23
+    ],
+    "total_features": 21,
+    "target_column": "diagnosis_code"
+  },
+  "preprocessing_steps": [
+    "1. Missing value imputation (KNN-based, k=5)",
+    "2. Categorical encoding (LabelEncoder, fit on training)",
+    "3. Advanced feature engineering (BMI, age groups, clinical indicators)",
+    "4. Numerical feature scaling (StandardScaler, fit on training)",
+    "5. Comprehensive pipeline verification (7 quality checks)",
+    "6. Data export and component preservation"
+  ],
+  "component_info": {
+    "imputer_type": "KNNImputer",
+    "scaler_type": "StandardScaler",
+    "encoder_type": "LabelEncoder",
+    "engineering_features": 8
+  },
+  "quality_metrics": {
+    "missing_values_removed": true,
+    "infinite_values_removed": true,
+    "feature_consistency": true,
+    "data_types_verified": true,
+    "scaling_verified": true
+  },
+  "file_exports": [
+    "train_processed.csv",
+    "test_processed.csv",
+    "label_encoders.pkl",
+    "scaler.pkl",
+    "knn_imputer.pkl",
+    "feature_engineering_info.pkl",
+    "feature_mapping.pkl",
+    "verification_summary.pkl",
+    "preprocessing_summary.pkl"
+  ],
+  "timestamp": "2025-06-29T20:31:53.140701"
+}
