@@ -4,7 +4,7 @@ Classification Report on Training Data:
 
            0       0.97      0.99      0.98      6108
            1       0.91      0.96      0.93      2931
-           2       0.96      0.72      0.82       961
+           2       0.96      0.71      0.82       961
 
     accuracy                           0.95     10000
    macro avg       0.95      0.89      0.91     10000

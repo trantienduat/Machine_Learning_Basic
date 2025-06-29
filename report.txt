@@ -1,0 +1,225 @@
+PROMPT: remove redundant lines and format but keep original text, the desired format should same with #1 , #2 and #3
+
+#######################################
+###### 1. DATA OVERVIEW AND INFO ######
+#######################################
+
+1. Thông tin tổng quát (DATA OVERVIEW):
+    - Dữ liệu train có 10.000 dòng (bệnh nhân), 15 cột (feature)
+    - Chiếm bộ nhớ 3.33 MB (tức là khá nhẹ, thao tác nhanh được)
+
+2. Kiểm tra chi tiết từng cột (COLUMN INFORMATION):
+    - age, systolic_bp, diastolic_bp, heart_rate, diagnosis_code:
+        + Đều đủ 10.000 dòng, không bị thiếu (non-null)
+        + Kiểu int64 (số nguyên)
+    - gender, smoking_status, exercise_level, family_history, diagnosis:
+        + Đều đủ 10.000 dòng, kiểu object (chuỗi ký tự/categorical)
+    - bmi, blood_glucose, cholesterol, medication_count, symptoms_score:
+        + Mỗi cột bị thiếu 100 dòng (còn 9900 giá trị), kiểu float64
+        + Sẽ cần xử lý missing value cho 5 cột này
+
+3. Xem 5 dòng đầu tiên của dữ liệu:
+    - Kiểm tra giá trị thực tế trong từng cột
+    - VD: gender có cả 'M', 'F'; smoking_status có 'Never', 'Former', 'Current'
+    - Cột symptoms_score có giá trị thiếu (NaN)
+    - diagnosis_code có giá trị 0, 1, 2 (multi-class)
+
+4. Thống kê mô tả cơ bản (STATISTICAL SUMMARY):
+    - age:
+        + Trung bình 57 tuổi (mean), lệch chuẩn ~12 tuổi (std)
+        + Dao động từ 18 → 90 tuổi
+    - bmi:
+        + Trung bình 27.3, min 16, max 42.9 (có đủ các mức từ gầy tới béo phì)
+    - Huyết áp, nhịp tim, glucose, cholesterol, medication_count, symptoms_score:
+        + Các giá trị đều hợp lý về mặt y khoa
+        + medication_count tối đa tới 12 loại (nên kiểm tra thêm outlier)
+        + symptoms_score từ 0 → 10
+    - diagnosis_code:
+        + mean ~0.48, lệch chuẩn ~0.66, min 0, max 2
+        + Median = 0, 75% giá trị <= 1 → class 0 chiếm số lượng lớn (có thể có mất cân bằng label)
+
+5. Tổng kết dtype:
+    - 5 cột số nguyên: phù hợp cho ML
+    - 5 cột float: đã nhận diện cột nào thiếu giá trị
+    - 5 cột object: cần encode trước khi train model
+
+
+###########################################################
+###### 2. MISSING VALUES DETECTION AND VISUALIZATION ######
+###########################################################
+
+
+1. Missing Values Summary (Bảng tổng hợp):
+    - Có 5 cột bị thiếu giá trị:
+        + bmi
+        + blood_glucose
+        + cholesterol
+        + medication_count
+        + symptoms_score
+    - Mỗi cột bị thiếu đúng 100 giá trị (trên tổng số 10,000 → tỷ lệ thiếu là 1% cho mỗi cột)
+    - Các cột khác (tuổi, huyết áp, nhịp tim, label, ...) không bị thiếu.
+
+2. Bar Chart: Missing Values Count by Column
+    - Biểu đồ thanh thể hiện tổng số dòng bị thiếu ở mỗi cột.
+    - Thấy rõ 5 cột kia đều cao 100, các cột còn lại = 0.
+
+3. Heatmap: Missing Values Heatmap
+    - Mỗi cột là một feature, mỗi dòng là một bệnh nhân.
+    - Các vạch vàng trên nền tím chính là vị trí xuất hiện giá trị thiếu (NaN).
+    - Nhìn vào heatmap này, dễ thấy 5 cột bị thiếu, các cột còn lại thì không.
+
+4. Ý nghĩa thực tế:
+    - Dataset khá đầy đủ, chỉ thiếu nhẹ 1% ở 5 cột số (không quá nghiêm trọng).
+    - Các cột này cần được xử lý missing value trước khi đưa vào huấn luyện (thường dùng mean/median hoặc kỹ thuật thông minh hơn).
+    - Không có cột categorical nào bị thiếu nên encode được luôn.
+    - Dễ xử lý: Có thể điền trực tiếp hoặc dùng kỹ thuật nâng cao (KNN, domain knowledge…)
+
+
+###########################################################
+####### 3. NUMERICAL FEATURES DISTRIBUTION ANALYSIS #######
+###########################################################
+
+# 3.1 Histogram
+1. Đa số các feature phân phối khá “chuẩn” (gần giống hình chuông):
+    - age, bmi, systolic_bp, diastolic_bp, heart_rate, cholesterol, symptoms_score:
+        + Các biểu đồ đều có dạng đối xứng quanh mean/median.
+        + Mean ≈ median → dữ liệu không bị lệch (không skew), tức là ít outlier hoặc lệch nhẹ.
+        + Điều này rất tốt cho các mô hình ML, đặc biệt là logistic regression.
+
+2. Một vài feature có phân phối hơi lệch:
+    - blood_glucose:
+        + Median > mean (mean = 151.08, median = 158) → có một số giá trị thấp bất thường (left skew).
+        + Nhìn histogram cũng thấy có phần “đuôi dài” bên trái.
+    - medication_count:
+        + Cực kỳ lệch về bên trái (right skew), rất nhiều giá trị 0, 1, 2.
+        + Mean > median (mean = 2.51, median = 2.0).
+        + Biểu đồ này không theo hình chuông, là đặc trưng kiểu “đếm” — nhiều bệnh nhân dùng rất ít thuốc, số nhỏ dùng nhiều thuốc.
+
+3. Các feature còn lại:
+    - symptoms_score:
+        + Khá chuẩn, mean ≈ median, không skew rõ.
+    - heart_rate, cholesterol:
+        + Đều đẹp, không lệch nhiều, mean ≈ median.
+    - systolic_bp, diastolic_bp:
+        + Đều có hình chuông, không outlier nặng.
+
+4. Ý nghĩa thực tế cho modeling:
+    - Những cột phân phối chuẩn, mean~median:
+        + Có thể dùng mean hoặc median để điền missing đều được.
+        + Khi scaling, sẽ phù hợp với StandardScaler.
+    - Những cột lệch (skewed) như medication_count hoặc blood_glucose:
+        + Nên cân nhắc dùng median để điền missing value cho cột này, vì median ít bị ảnh hưởng bởi giá trị cực trị.
+        + Nếu dùng cho một số mô hình nhạy với phân phối (như Linear Regression), có thể cân nhắc biến đổi log hoặc square-root cho các feature này.
+
+5. Tổng kết nhận xét nhanh cho báo cáo/thuyết trình:
+    - Dataset nhìn chung có phân phối feature khá chuẩn, ít outlier rõ rệt.
+    - Một số feature dạng đếm (medication_count) hoặc y tế đặc thù (blood_glucose) bị lệch nhẹ, cần cân nhắc phương pháp tiền xử lý phù hợp.
+    - Đa phần feature số đều có thể dùng trực tiếp cho modeling sau khi chuẩn hóa.
+
+# 3.2 Boxplot
+
+1. Ý nghĩa boxplot trong context này:
+    - Hộp màu xanh: chứa 50% dữ liệu trung tâm (Q1–Q3)
+    - Vạch ngang giữa hộp: median (trung vị)
+    - Dấu tròn đen (outlier): giá trị bất thường ngoài [Q1 - 1.5×IQR, Q3 + 1.5×IQR]
+
+2. Phân tích từng cột nổi bật:
+    - age, bmi, systolic_bp, diastolic_bp, heart_rate, cholesterol:
+        + Có outlier rải đều cả phía trên lẫn dưới (nhiều nhất ở cholesterol, systolic_bp, bmi)
+        + Đa số dữ liệu nằm trong hộp, không bị lệch nặng
+    - blood_glucose, symptoms_score:
+        + Rất ít hoặc không có outlier rõ rệt
+    - medication_count:
+        + Outlier nhiều ở phía trên (dùng nhiều thuốc)
+        + Hộp (Q1-Q3) rất nhỏ: phần lớn bệnh nhân dùng ít thuốc, một số ít dùng cực kỳ nhiều → phân phối lệch phải, nhiều outlier lớn
+
+3. Insight thực tế:
+    - Outlier chủ yếu ở medication_count, cholesterol, bmi, systolic_bp
+    - blood_glucose, symptoms_score phân phối gọn gàng, hiếm outlier — dễ modeling hơn
+    - Các cột outlier nhiều (medication_count, cholesterol): có thể do bệnh nhân đặc biệt hoặc lỗi nhập liệu → cân nhắc kiểm tra/clip/winsorize/transform
+    - medication_count: outlier có thể là bệnh nhân mắc nhiều bệnh hoặc dùng nhiều thuốc (hiếm nhưng có thể thật)
+
+4. Kết luận nhanh cho modeling:
+    - Các feature đều có thể sử dụng, nhưng nên kiểm tra kỹ outlier ở medication_count, cholesterol, systolic_bp
+    - Nếu dùng mô hình nhạy cảm với outlier, cân nhắc xử lý thêm
+    - Có thể giữ nguyên outlier nếu hợp lý về mặt lâm sàng (domain knowledge)
+
+
+##################################################
+####### # 4. CATEGORICAL FEATURES ANALYSIS #######
+##################################################
+1. Thống kê tổng quan (Summary Table)
+Các cột phân loại:
+- gender (giới tính): 2 giá trị F (5171), M (4829) — khá cân bằng, nữ hơi nhiều hơn nam
+- smoking_status (tình trạng hút thuốc): 3 giá trị Never (6345), Former (2310), Current (1345) — đa số chưa từng hút thuốc (~63%)
+- exercise_level (mức độ vận động): 3 giá trị Low (4080), Moderate (3618), High (2302) — đa số vận động ít, càng lên cao càng ít người
+- family_history (tiền sử gia đình): 2 giá trị Yes (6025), No (3975) — ~60% có tiền sử bệnh gia đình
+- diagnosis (nhãn bệnh): 3 giá trị Diabetes (6108), Hypertension (2931), Heart_Disease (961) — mất cân bằng mạnh, Diabetes chiếm phần lớn (>60%), Heart_Disease rất ít (~10%)
+
+2. Barplot trực quan hóa từng biến phân loại
+- Các plot thể hiện số lượng (Count) theo từng giá trị, trùng khớp với bảng summary.
+- gender: gần cân bằng
+- smoking_status: chỉ khoảng 36% từng/current smoker, còn lại never
+- exercise_level: đa số vận động ít hoặc vừa
+- family_history: gần 2/3 có tiền sử bệnh gia đình
+- diagnosis: mất cân bằng nhãn — diabetes nhiều, heart_disease ít
+=> Cần cân nhắc xử lý imbalance trước khi train mô hình!
+
+3. Nhận xét nhanh cho báo cáo/thuyết trình:
+- Các biến phân loại hợp lý, không có giá trị lạ, không thiếu dữ liệu.
+- Một số biến bị mất cân bằng (đặc biệt diagnosis).
+- Cần cân nhắc cách encode (one-hot/label), cân bằng lại label, hoặc chọn trọng số khi train model.
+
+####################################################################
+####### # 6. CORRELATION ANALYSIS BETWEEN NUMERICAL FEATURES #######
+####################################################################
+1. Correlation matrix shape: (10, 10)
+    - 10 numerical features: age, bmi, systolic_bp, diastolic_bp, heart_rate, blood_glucose, cholesterol, medication_count, symptoms_score, diagnosis_code
+
+2. Heatmap: Ý nghĩa màu và số
+    - Màu đỏ: Tương quan dương (hai biến cùng tăng/giảm)
+    - Màu xanh: Tương quan âm (một biến tăng, một biến giảm)
+    - Số gần 1/-1: Tương quan mạnh, gần 0: rất yếu hoặc không liên quan
+
+3. Một số insight nổi bật:
+    a. Tương quan rất mạnh:
+        - systolic_bp & diastolic_bp: Corr = 0.79 (liên quan cực mạnh, hợp lý về y khoa)
+    b. Một số cặp có tương quan trung bình/thấp:
+        - systolic_bp & heart_rate: 0.40
+        - diastolic_bp & heart_rate: 0.30
+        - diagnosis_code & systolic_bp: 0.44
+        - diagnosis_code & diastolic_bp: 0.35
+        - diagnosis_code & medication_count: 0.39
+        - diagnosis_code & symptoms_score: 0.33
+        - diagnosis_code & blood_glucose: -0.74 (tương quan âm mạnh)
+    c. Các cặp khác gần như không tương quan:
+        - age & các biến khác: quanh 0.1 hoặc thấp hơn
+        - bmi với các biến khác: thấp
+
+4. Kết luận nhanh:
+    - systolic_bp và diastolic_bp có tương quan rất mạnh, có thể cân nhắc giữ 1 trong 2 nếu cần đơn giản hóa, nhưng nên giữ cả hai cho y khoa.
+    - Các feature khác không có multicollinearity nghiêm trọng, có thể giữ lại để train.
+    - blood_glucose liên quan âm mạnh với diagnosis_code, phù hợp với y khoa.
+    - Những feature liên quan rõ tới diagnosis_code (bp, glucose, medication, symptom) sẽ là nhóm quan trọng cho model.
+
+############################################
+####### 3.1 MISSING VALUE IMPUTATION #######
+############################################
+Các phương pháp điền khuyết dữ liệu: Median-based và KNN
+Trong dự án này, nhóm đã xem xét hai chiến lược chính để xử lý giá trị thiếu ở các đặc trưng số liệu sức khoẻ:
+
+1. Điền bằng median (trung vị):
+
+Cách làm: Điền giá trị thiếu bằng trung vị của từng cột, tính trên tập huấn luyện.
+
+Ưu điểm: Đơn giản, nhanh, chống chịu tốt với outlier và dễ lặp lại.
+
+Nhược điểm: Tất cả các giá trị thiếu trong một cột đều được thay bằng một số duy nhất, không cá nhân hoá theo từng bệnh nhân.
+
+2. Điền bằng KNN Imputation:
+
+Cách làm: Tìm các bệnh nhân “gần giống” nhất (k-nearest neighbors) dựa trên các đặc trưng khác, sau đó điền giá trị thiếu bằng trung bình của các hàng lân cận này.
+
+Ưu điểm: Cá nhân hóa hơn – mỗi giá trị thiếu sẽ được điền dựa trên nhóm bệnh nhân tương tự, từ đó giữ lại các đặc điểm y khoa thực tế và có thể giúp mô hình dự báo tốt hơn.
+
+Nhược điểm: Tính toán phức tạp hơn, có thể tốn thời gian với dữ liệu lớn.
